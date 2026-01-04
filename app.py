@@ -68,7 +68,7 @@ uploaded_file = st.file_uploader(
 # ================= LOAD MODEL =================
 @st.cache_resource
 def load_model():
-    return YOLO(""best.pt"")
+    return YOLO("best.pt")
 
 model = load_model()
 
