@@ -7,6 +7,7 @@ import cv2
 import numpy as np
 import pandas as pd
 import altair as alt
+from streamlit_image_comparison import image_comparison
 
 # ================= PAGE CONFIG =================
 st.set_page_config(
@@ -79,21 +80,16 @@ if uploaded_file:
             tmp.write(uploaded_file.read())
             temp_path = tmp.name
 
-    # Run YOLO
+    # Run YOLO without confidence filtering
     results = model.predict(temp_path, conf=0.0)
 
     img = cv2.imread(temp_path)
     img_result = img.copy()
 
-    # Defensive YOLO handling
-    if results[0].boxes is not None:
-        boxes_all = results[0].boxes.xyxy
-        confs_all = results[0].boxes.conf.tolist()
-    else:
-        boxes_all = []
-        confs_all = []
+    boxes_all = results[0].boxes.xyxy
+    confs_all = results[0].boxes.conf.tolist() if boxes_all is not None else []
 
-    # Manual confidence filtering
+    # Manual thresholding
     filtered = [
         (box, conf) for box, conf in zip(boxes_all, confs_all)
         if conf >= conf_threshold
@@ -131,31 +127,36 @@ if uploaded_file:
 
         heatmap[y1:y2, x1:x2] += conf
 
-    # Convert to RGB (force uint8)
-    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB).astype(np.uint8)
-    img_result_rgb = cv2.cvtColor(img_result, cv2.COLOR_BGR2RGB).astype(np.uint8)
+    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    img_result_rgb = cv2.cvtColor(img_result, cv2.COLOR_BGR2RGB)
 
     # ================= KPI METRICS =================
     st.markdown("---")
     c1, c2, c3, c4 = st.columns(4)
 
     c1.metric("🚢 Ships Detected", ship_count)
-    c2.metric("📊 Avg Confidence", f"{int(np.mean(confidences) * 100)}%" if ship_count else "0%")
-    c3.metric("🎯 Max Confidence", f"{int(max(confidences) * 100)}%" if ship_count else "0%")
+    c2.metric(
+    "📊 Avg Confidence",
+    f"{int(np.mean(confidences) * 100)}%" if ship_count else "0%"
+)
+
+    c3.metric(
+    "🎯 Max Confidence",
+    f"{int(max(confidences) * 100)}%" if ship_count else "0%"
+)
+
     c4.metric("✅ Status", "Detected" if ship_count else "No Ships")
 
-    # ================= BEFORE / AFTER (SAFE) =================
+    # ================= IMAGE COMPARISON =================
     st.subheader("🔍 Before vs After")
+    image_comparison(
+        img_rgb,
+        img_result_rgb,
+        label1="Original Image",
+        label2="Detected Ships"
+    )
 
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.image(img_rgb, caption="Original Image", use_container_width=True)
-
-    with col2:
-        st.image(img_result_rgb, caption="Detected Ships", use_container_width=True)
-
-    # ================= BAR GRAPH =================
+    # ================= BAR GRAPH (SHIP vs CONFIDENCE) =================
     if ship_count:
         st.subheader("📊 Confidence per Detected Ship")
 
