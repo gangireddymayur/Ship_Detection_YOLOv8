@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import altair as alt
 from streamlit_image_comparison import image_comparison
+from PIL import Image
 
 # ================= PAGE CONFIG =================
 st.set_page_config(
@@ -68,7 +69,7 @@ uploaded_file = st.file_uploader(
 # ================= LOAD MODEL =================
 @st.cache_resource
 def load_model():
-    return YOLO("best.pt")
+    return YOLO("best.pt")   # make sure best.pt is in repo root
 
 model = load_model()
 
@@ -80,18 +81,20 @@ if uploaded_file:
             tmp.write(uploaded_file.read())
             temp_path = tmp.name
 
-    # Run YOLO without confidence filtering
-    results = model.predict(temp_path, conf=0.0)
+    # Run YOLO (no filtering)
+    results = model.predict(temp_path, conf=0.0, verbose=False)
 
     img = cv2.imread(temp_path)
     img_result = img.copy()
 
-    boxes_all = results[0].boxes.xyxy
-    confs_all = results[0].boxes.conf.tolist() if boxes_all is not None else []
+    boxes = results[0].boxes
+    boxes_all = boxes.xyxy if boxes is not None else []
+    confs_all = boxes.conf.tolist() if boxes is not None else []
 
     # Manual thresholding
     filtered = [
-        (box, conf) for box, conf in zip(boxes_all, confs_all)
+        (box, conf)
+        for box, conf in zip(boxes_all, confs_all)
         if conf >= conf_threshold
     ]
 
@@ -118,7 +121,7 @@ if uploaded_file:
             cv2.putText(
                 img_result,
                 f"Ship {int(conf * 100)}%",
-                (x1, y1 - 10),
+                (x1, max(y1 - 10, 20)),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.6,
                 color,
@@ -127,6 +130,7 @@ if uploaded_file:
 
         heatmap[y1:y2, x1:x2] += conf
 
+    # Convert to RGB
     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     img_result_rgb = cv2.cvtColor(img_result, cv2.COLOR_BGR2RGB)
 
@@ -135,28 +139,20 @@ if uploaded_file:
     c1, c2, c3, c4 = st.columns(4)
 
     c1.metric("🚢 Ships Detected", ship_count)
-    c2.metric(
-    "📊 Avg Confidence",
-    f"{int(np.mean(confidences) * 100)}%" if ship_count else "0%"
-)
-
-    c3.metric(
-    "🎯 Max Confidence",
-    f"{int(max(confidences) * 100)}%" if ship_count else "0%"
-)
-
+    c2.metric("📊 Avg Confidence", f"{int(np.mean(confidences) * 100)}%" if ship_count else "0%")
+    c3.metric("🎯 Max Confidence", f"{int(max(confidences) * 100)}%" if ship_count else "0%")
     c4.metric("✅ Status", "Detected" if ship_count else "No Ships")
 
     # ================= IMAGE COMPARISON =================
     st.subheader("🔍 Before vs After")
     image_comparison(
-        img_rgb,
-        img_result_rgb,
+        Image.fromarray(img_rgb),
+        Image.fromarray(img_result_rgb),
         label1="Original Image",
         label2="Detected Ships"
     )
 
-    # ================= BAR GRAPH (SHIP vs CONFIDENCE) =================
+    # ================= BAR GRAPH =================
     if ship_count:
         st.subheader("📊 Confidence per Detected Ship")
 
@@ -168,17 +164,13 @@ if uploaded_file:
         bar_chart = alt.Chart(df_bar).mark_bar().encode(
             x=alt.X("Ship:N", title="Detected Ships"),
             y=alt.Y("Confidence (%):Q", scale=alt.Scale(domain=[0, 100])),
-            color=alt.Color(
-                "Confidence (%):Q",
-                scale=alt.Scale(scheme="redyellowgreen"),
-                legend=None
-            ),
+            color=alt.Color("Confidence (%):Q", scale=alt.Scale(scheme="redyellowgreen"), legend=None),
             tooltip=["Ship", "Confidence (%)"]
         ).properties(height=350)
 
-        st.altair_chart(bar_chart, use_container_width=True)
+        st.altair_chart(bar_chart, use_column_width=True)
 
-    # ================= DETECTION TABLE =================
+    # ================= TABLE =================
     if ship_count:
         st.subheader("📋 Detection Details")
 
@@ -188,11 +180,13 @@ if uploaded_file:
             table.append({
                 "Ship ID": i + 1,
                 "Confidence (%)": int(conf * 100),
-                "X1": x1, "Y1": y1,
-                "X2": x2, "Y2": y2
+                "X1": x1,
+                "Y1": y1,
+                "X2": x2,
+                "Y2": y2
             })
 
-        st.dataframe(table, use_container_width=True)
+        st.dataframe(table, use_column_width=True)
 
     # ================= HEATMAP =================
     if ship_count and show_heatmap:
@@ -204,7 +198,7 @@ if uploaded_file:
 
         st.image(
             cv2.cvtColor(overlay, cv2.COLOR_BGR2RGB),
-            use_container_width=True
+            use_column_width=True
         )
 
     # ================= DOWNLOAD =================
