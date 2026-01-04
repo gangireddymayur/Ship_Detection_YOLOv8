@@ -1,11 +1,5 @@
-Perfect. Below is a **clean, professional, final `README.md`** that you can **copy–paste directly**.
-It clearly explains the **dataset**, **methodology**, **app**, and looks **academic + GitHub-professional**.
-
----
-
 ## 📘 README.md
 
-```markdown
 # 🚢 CNN Model–Based Ship Detection from High-Resolution Aerial Images
 
 This project presents a **deep learning–based ship detection system** using **YOLOv8**, designed to detect ships and vessels from **high-resolution aerial and satellite images**.  
@@ -209,28 +203,3 @@ Final Year Graduation Project
 Domain: Computer Vision | Deep Learning | Remote Sensing
 
 ---
-
-## 📜 License
-
-This project is developed for **academic and research purposes**.
-
-```
-
----
-
-## ✅ This README is now:
-
-- ✔ Dataset clearly explained  
-- ✔ Professional & academic  
-- ✔ Examiner-friendly  
-- ✔ GitHub-ready  
-- ✔ Resume-safe  
-
-If you want next, I can:
-- Shorten this for **GitHub description**
-- Write **project abstract**
-- Create **resume bullet points**
-- Help with **project report documentation**
-
-Just tell me.
-```
