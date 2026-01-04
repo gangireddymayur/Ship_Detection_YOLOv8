@@ -8,7 +8,6 @@ import numpy as np
 import pandas as pd
 import altair as alt
 from streamlit_image_comparison import image_comparison
-from PIL import Image
 
 # ================= PAGE CONFIG =================
 st.set_page_config(
@@ -55,7 +54,6 @@ conf_threshold = st.sidebar.slider(
 
 show_boxes = st.sidebar.checkbox("Show Bounding Boxes", True)
 show_labels = st.sidebar.checkbox("Show Confidence Labels", True)
-show_heatmap = st.sidebar.checkbox("Show Heatmap", True)
 
 st.sidebar.markdown("---")
 st.sidebar.info("Model runs unfiltered. Threshold applied after inference.")
@@ -69,7 +67,9 @@ uploaded_file = st.file_uploader(
 # ================= LOAD MODEL =================
 @st.cache_resource
 def load_model():
-    return YOLO("best.pt")   # make sure best.pt is in repo root
+    return YOLO(
+        "best.pt"
+    )
 
 model = load_model()
 
@@ -81,17 +81,16 @@ if uploaded_file:
             tmp.write(uploaded_file.read())
             temp_path = tmp.name
 
-    # Run YOLO (no filtering)
-    results = model.predict(temp_path, conf=0.0, verbose=False)
+    # Run YOLO without confidence filtering
+    results = model.predict(temp_path, conf=0.0)
 
     img = cv2.imread(temp_path)
     img_result = img.copy()
 
-    boxes = results[0].boxes
-    boxes_all = boxes.xyxy if boxes is not None else []
-    confs_all = boxes.conf.tolist() if boxes is not None else []
+    boxes_all = results[0].boxes.xyxy
+    confs_all = results[0].boxes.conf.tolist() if boxes_all is not None else []
 
-    # Manual thresholding
+    # Manual confidence thresholding
     filtered = [
         (box, conf)
         for box, conf in zip(boxes_all, confs_all)
@@ -102,8 +101,6 @@ if uploaded_file:
     confidences = [conf for _, conf in filtered]
 
     # ================= DRAW DETECTIONS =================
-    heatmap = np.zeros(img.shape[:2], dtype=np.float32)
-
     for box, conf in filtered:
         x1, y1, x2, y2 = map(int, box)
 
@@ -121,16 +118,13 @@ if uploaded_file:
             cv2.putText(
                 img_result,
                 f"Ship {int(conf * 100)}%",
-                (x1, max(y1 - 10, 20)),
+                (x1, y1 - 10),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.6,
                 color,
                 2
             )
 
-        heatmap[y1:y2, x1:x2] += conf
-
-    # Convert to RGB
     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     img_result_rgb = cv2.cvtColor(img_result, cv2.COLOR_BGR2RGB)
 
@@ -139,20 +133,26 @@ if uploaded_file:
     c1, c2, c3, c4 = st.columns(4)
 
     c1.metric("🚢 Ships Detected", ship_count)
-    c2.metric("📊 Avg Confidence", f"{int(np.mean(confidences) * 100)}%" if ship_count else "0%")
-    c3.metric("🎯 Max Confidence", f"{int(max(confidences) * 100)}%" if ship_count else "0%")
+    c2.metric(
+        "📊 Avg Confidence",
+        f"{int(np.mean(confidences) * 100)}%" if ship_count else "0%"
+    )
+    c3.metric(
+        "🎯 Max Confidence",
+        f"{int(max(confidences) * 100)}%" if ship_count else "0%"
+    )
     c4.metric("✅ Status", "Detected" if ship_count else "No Ships")
 
     # ================= IMAGE COMPARISON =================
     st.subheader("🔍 Before vs After")
     image_comparison(
-        Image.fromarray(img_rgb),
-        Image.fromarray(img_result_rgb),
+        img_rgb,
+        img_result_rgb,
         label1="Original Image",
         label2="Detected Ships"
     )
 
-    # ================= BAR GRAPH =================
+    # ================= BAR CHART =================
     if ship_count:
         st.subheader("📊 Confidence per Detected Ship")
 
@@ -164,13 +164,17 @@ if uploaded_file:
         bar_chart = alt.Chart(df_bar).mark_bar().encode(
             x=alt.X("Ship:N", title="Detected Ships"),
             y=alt.Y("Confidence (%):Q", scale=alt.Scale(domain=[0, 100])),
-            color=alt.Color("Confidence (%):Q", scale=alt.Scale(scheme="redyellowgreen"), legend=None),
+            color=alt.Color(
+                "Confidence (%):Q",
+                scale=alt.Scale(scheme="redyellowgreen"),
+                legend=None
+            ),
             tooltip=["Ship", "Confidence (%)"]
         ).properties(height=350)
 
-        st.altair_chart(bar_chart, use_column_width=True)
+        st.altair_chart(bar_chart, use_container_width=True)
 
-    # ================= TABLE =================
+    # ================= DETECTION TABLE =================
     if ship_count:
         st.subheader("📋 Detection Details")
 
@@ -186,20 +190,7 @@ if uploaded_file:
                 "Y2": y2
             })
 
-        st.dataframe(table, use_column_width=True)
-
-    # ================= HEATMAP =================
-    if ship_count and show_heatmap:
-        st.subheader("🔥 Detection Heatmap")
-
-        heatmap = cv2.normalize(heatmap, None, 0, 255, cv2.NORM_MINMAX)
-        heatmap = cv2.applyColorMap(heatmap.astype(np.uint8), cv2.COLORMAP_JET)
-        overlay = cv2.addWeighted(img, 0.6, heatmap, 0.4, 0)
-
-        st.image(
-            cv2.cvtColor(overlay, cv2.COLOR_BGR2RGB),
-            use_column_width=True
-        )
+        st.dataframe(table, use_container_width=True)
 
     # ================= DOWNLOAD =================
     st.download_button(
