@@ -1,6 +1,5 @@
-ultralytics
 streamlit
+ultralytics
 torch
-opencv-python
+opencv-python-headless
 Pillow
-image-comparison
