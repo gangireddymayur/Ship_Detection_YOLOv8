@@ -55,8 +55,7 @@ conf_threshold = st.sidebar.slider(
 show_boxes = st.sidebar.checkbox("Show Bounding Boxes", True)
 show_labels = st.sidebar.checkbox("Show Confidence Labels", True)
 
-st.sidebar.markdown("---")
-st.sidebar.info("Model runs unfiltered. Threshold applied after inference.")
+
 
 # ================= FILE UPLOAD =================
 uploaded_file = st.file_uploader(
