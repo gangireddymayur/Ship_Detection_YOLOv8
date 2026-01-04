@@ -1,0 +1,6 @@
+ultralytics
+streamlit
+torch
+opencv-python
+Pillow
+image-comparison

@@ -1,0 +1,8 @@
+path: D:/Ship_Detection_YOLOv8/ships-aerial-images
+
+train: train/images
+val: valid/images
+test: test/images
+
+names:
+  0: ship
