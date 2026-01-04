@@ -150,11 +150,12 @@ if uploaded_file:
     # ================= IMAGE COMPARISON =================
     st.subheader("🔍 Before vs After")
     image_comparison(
-        img_rgb,
-        img_result_rgb,
-        label1="Original Image",
-        label2="Detected Ships"
-    )
+    image1=img_rgb,
+    image2=img_result_rgb,
+    label1="Original Image",
+    label2="Detected Ships"
+)
+
 
     # ================= BAR GRAPH (SHIP vs CONFIDENCE) =================
     if ship_count:
